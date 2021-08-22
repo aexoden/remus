@@ -1,3 +1,5 @@
+import subprocess
+
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -31,9 +33,37 @@ class DatFile(object):
     # Public Methods
     #---------------------------------------------------------------------------
 
+    def match(self, filename: str) -> Optional[GameFile]:
+        hashes = self._hash_basic(filename)
+
+        for game in self._games:
+            for game_file in game.files:
+                match_count = 0
+
+                for algorithm, hash in hashes.items():
+                    if game_file.hashes[algorithm] == hash:
+                        match_count += 1
+
+                if match_count == 3:
+                    return game_file
+                elif match_count > 0:
+                    print(f'WARNING: {filename} partially matched {game_file.name} from {game.name}')
+
+                    for algorithm, hash in hashes.items():
+                        print(f' {algorithm:5} "{hash}" "{game_file.hashes[algorithm]}"')
+
+        return None
+
     #---------------------------------------------------------------------------
     # Private Methods
     #---------------------------------------------------------------------------
+
+    def _hash_basic(self, filename: str):
+        return {
+            'crc': subprocess.check_output(['crc32', filename]).decode('utf-8').strip(),
+            'md5': subprocess.check_output(['md5sum', filename]).decode('utf-8').strip().split(' ')[0],
+            'sha1': subprocess.check_output(['sha1sum', filename]).decode('utf-8').strip().split(' ')[0],
+        }
 
     def _load(self, filename: str):
         for child in ElementTree.parse(filename).getroot():
@@ -63,5 +93,3 @@ class DatFile(object):
                         game.files.append(game_file)
 
                 self._games.append(game)
-
-        print(self._games[0])

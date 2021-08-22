@@ -4,4 +4,5 @@ import sys
 
 from remus import datfile
 
-tmp = datfile.DatFile(sys.argv[1])
+dat_file = datfile.DatFile(sys.argv[1])
+print(dat_file.match(sys.argv[2]))
