@@ -3,6 +3,7 @@
 import argparse
 import json
 import os
+import shutil
 import sys
 
 from remus import datfile
@@ -12,15 +13,28 @@ from remus import datfile
 # Functions
 #-------------------------------------------------------------------------------
 
-def command_import(dat_files: dict[str, list[datfile.DatFile]], args: argparse.Namespace):
+def command_import(library_path: str, dat_files: dict[str, list[datfile.DatFile]], args: argparse.Namespace):
+    import_count = 0
+
     for root, _, files in os.walk(args.directory):
-        for filename in files:
-            for _, system_dat_files in dat_files.items():
+        for filename in sorted(files):
+            for system, system_dat_files in dat_files.items():
                 for dat_file in system_dat_files:
-                    result = dat_file.match(os.path.join(root, filename))
+                    source_filename = os.path.join(root, filename)
+                    result = dat_file.match(source_filename)
 
                     if result:
-                        print(result)
+                        target_filename = os.path.join(library_path, system, result.region, result.name)
+
+                        if os.path.exists(target_filename):
+                            print(f'{target_filename} already exists... skipping!')
+                        else:
+                            os.makedirs(os.path.dirname(target_filename), exist_ok=True)
+                            shutil.move(source_filename, target_filename)
+                            print(f'{source_filename} -> {target_filename}')
+                            import_count += 1
+
+    print(f'Imported {import_count} files')
 
 
 def load_config():
@@ -38,6 +52,12 @@ def load_config():
 
 config = load_config()
 
+library_path = os.path.abspath(config['paths']['library'])
+
+if not os.path.exists(library_path):
+    print(f'Library path {library_path} does not exist', file=sys.stderr)
+    sys.exit(2)
+
 dat_path = os.path.abspath(config['paths']['dats'])
 dat_files: dict[str, list[datfile.DatFile]] = {}
 
@@ -52,4 +72,4 @@ parser_import.add_argument('directory', metavar='DIRECTORY', help='Directory to 
 parser_import.set_defaults(func=command_import)
 
 args = parser.parse_args(sys.argv[1:])
-args.func(dat_files, args)
+args.func(library_path, dat_files, args)
