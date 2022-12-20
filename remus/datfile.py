@@ -1,3 +1,4 @@
+import re
 import subprocess
 
 from dataclasses import dataclass, field
@@ -14,6 +15,7 @@ import xml.etree.ElementTree as ElementTree
 class GameFile(object):
     name: str
     hashes: dict[str, str] = field(default_factory=dict)
+    region: str = 'Unknown'
     size: int = 0
     status: Optional[str] = None
 
@@ -77,6 +79,14 @@ class DatFile(object):
                 for entry in child:
                     if entry.tag == 'rom':
                         game_file = GameFile(entry.attrib['name'])
+
+                        for tag in re.findall(r'\(([^\)]*)\)', game_file.name):
+                            if 'USA' in tag:
+                                game_file.region = 'USA'
+                            elif 'Japan' in tag:
+                                game_file.region = 'Japan'
+                            elif 'Europe' in tag or 'Germany' in tag or 'France' in tag or 'Spain' in tag:
+                                game_file.region = 'Europe'
 
                         for attrib, value in entry.attrib.items():
                             if attrib in ['crc', 'md5', 'sha1']:
